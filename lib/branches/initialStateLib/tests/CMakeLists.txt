@@ -1,0 +1,82 @@
+
+SET( BAMPS_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/src/" "${CMAKE_CURRENT_BINARY_DIR}/../src/" )
+SET( BAMPS_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/../src/" )
+SET( BAMPS_LIBRARIES -lbamps )
+
+INCLUDE_DIRECTORIES( ${BAMPS_INCLUDE_DIRS} )
+INCLUDE_DIRECTORIES( ${GSL_INCLUDE_DIRS} )
+
+MACRO(bamps_add_test _name)
+  SET(name ${_name})
+  ADD_EXECUTABLE(${_name} ${_name}.cpp)
+  TARGET_LINK_LIBRARIES(${_name} bamps 
+    ${GSL_LIBRARIES} ${Boost_LIBRARIES} )
+  IF( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+    target_link_libraries( ${_name} rt )
+  ENDIF()
+  IF( Cuba_FOUND )
+    TARGET_LINK_LIBRARIES( ${_name} ${Cuba_LIBRARIES} )
+  ENDIF()
+  IF( LOG4CXX_FOUND )
+    TARGET_LINK_LIBRARIES(${_name} ${LOG4CXX_LIBRARIES})
+  ENDIF()
+  IF( ROOT_FOUND )
+    TARGET_LINK_LIBRARIES(${_name} ${ROOT_LIBRARIES})
+  ENDIF()
+  ADD_TEST(${_name} "${CMAKE_CURRENT_BINARY_DIR}/${_name}")
+ENDMACRO(bamps_add_test)
+
+
+bamps_add_test(00_cmake)
+bamps_add_test(01_lorentz)
+bamps_add_test(02_vector)
+bamps_add_test(03_tsampling)
+bamps_add_test(03_tsampling_asConst)
+bamps_add_test(04_tsampling_HQ)
+bamps_add_test(05_testI32)
+bamps_add_test(06_outputformat)
+bamps_add_test(07_vectoralign)
+bamps_add_test(08_testXS)
+bamps_add_test(09_testCentrality)
+bamps_add_test(10_random)
+bamps_add_test(11_cs22test)
+bamps_add_test(12_cs23test)
+bamps_add_test(13_rotation)
+bamps_add_test(21_averager)
+bamps_add_test(31_randomlist)
+bamps_add_test(32_rangen_distr)
+bamps_add_test(33_hydroTensor)
+
+# following tests have to be implemented:
+
+bamps_add_test(99_binary_cross_sections)
+bamps_add_test(99_centralityclass)
+bamps_add_test(99_coupling)
+bamps_add_test(99_integrand23)
+bamps_add_test(99_integrand32)
+bamps_add_test(99_integrate)
+bamps_add_test(99_interpolation22)
+bamps_add_test(99_interpolation23)
+bamps_add_test(99_interpolation32)
+bamps_add_test(99_interpolationGSL)
+bamps_add_test(99_interpolation_n_dimensions)
+bamps_add_test(99_particleprototype)
+bamps_add_test(99_ratesmanager)
+bamps_add_test(99_scattering22)
+bamps_add_test(99_scattering22_hydro)
+bamps_add_test(99_scattering23)
+bamps_add_test(99_scattering32)
+
+
+
+######### Copy additional files #########
+
+FUNCTION(copy_files)
+  FOREACH(filename ${ARGV})
+#    MESSAGE(STATUS "copying: ${filename}")
+    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/${filename} ${CMAKE_CURRENT_BINARY_DIR}/${filename})
+  ENDFOREACH(filename)
+ENDFUNCTION(copy_files)
+
+copy_files( testNf3_32configurations.dat )
+copy_files( data )

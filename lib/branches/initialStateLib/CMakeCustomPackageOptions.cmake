@@ -1,0 +1,16 @@
+### Package configuration
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "BAMPS - full version")
+SET(CPACK_GENERATOR "TGZ")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
+SET(CPACK_PACKAGE_VERSION_MAJOR 0)
+SET(CPACK_PACKAGE_VERSION_MINOR 9)
+## PATCH version number is set to the svn revision (if applicable)
+
+SET(COMMON_IGNORE_FILES "/CMakeFiles/" "/build/" "/debug/" "/run/" "/doc/" "/data/" "/.svn/" "/CVS/" "_CPack_Packages/"
+    "~" ".swp" ".log" ".gz" ".directory$" "CMakeCache.txt" ".kdev.*$" ".tag" $CMAKE_BINARY_DIR)
+SET(PRJ_COMMON_IGNORE_FILES ${COMMON_IGNORE_FILES})
+
+SET(CPACK_SOURCE_IGNORE_FILES ${PRJ_COMMON_IGNORE_FILES} ${CMAKE_BINARY_DIR}/*)
+SET(CPACK_PACKAGE_IGNORE_FILES ${PRJ_COMMON_IGNORE_FILES})
+SET(CPACK_SOURCE_GENERATOR "TGZ")
+
