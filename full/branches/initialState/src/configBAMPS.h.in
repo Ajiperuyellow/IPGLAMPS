@@ -1,0 +1,41 @@
+//--------------------------------------------------------- -*- c++ -*- ------
+//provided by subversion
+//----------------------------------------------------------------------------
+//$HeadURL: file:///home/bamps/svn/full/branches/initialState/src/configBAMPS.h.in $
+//$LastChangedDate: 2013-11-05 22:12:18 +0100 (火, 05 11月 2013) $
+//$LastChangedRevision: 1533 $
+//$LastChangedBy: gallmei $
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+#ifndef CONFIGBAMPS_H
+#define CONFIGBAMPS_H
+
+#cmakedefine CGAL_FOUND
+#cmakedefine CUBA_FOUND
+#cmakedefine FASTJET_FOUND
+#cmakedefine FASTJET_SISCONE_FOUND
+#cmakedefine FASTJET_SISCONE_SPHERICAL_FOUND
+#cmakedefine FASTJET_CMSITERATIVECONE_FOUND
+#cmakedefine LHAPDF_FOUND
+#cmakedefine Pythia_FOUND
+
+#define HAVE_RDTSCP ${HAVE_RDTSCP}
+
+#cmakedefine HAVE_VECTOR_SSE2
+#cmakedefine HAVE_VECTOR_SSE3
+#cmakedefine HAVE_VECTOR_SSSE3
+#cmakedefine HAVE_VECTOR_SSE4_1
+#cmakedefine HAVE_VECTOR_SSE4_2
+#cmakedefine HAVE_VECTOR_SSE4a
+#cmakedefine HAVE_VECTOR_AVX
+#cmakedefine HAVE_VECTOR_FMA4
+#cmakedefine HAVE_VECTOR_XOP
+
+/* possible types: Scalar, SSE, AVX */
+#cmakedefine VECTOR_IMPL_TYPE ${VECTOR_IMPL_TYPE} 
+#define VECTOR_IMPL_${VECTOR_IMPL_TYPE}
+
+#define PYTHIA_XML_DIR "${Pythia_xmldoc_PATH}"
+
+#endif
