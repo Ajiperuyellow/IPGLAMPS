@@ -3660,7 +3660,7 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   double EnergyBeam=0.;
   stringstream ss1,ss2,ss3,ss4,ss5,ss6,ss7;
   int N = oneCluster.particleList.size();
-  
+  int color1,color2;
   cout << "Original Cluster Size " << N << endl;
   
   int Nparts=0;
@@ -3794,12 +3794,12 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
       {
         if(particles[oneCluster.particleList[oneCluster.MotherA]].FLAVOR==gluon)
         {
-          singleGluonList.push_back(oneCluster.MotherA);
+          singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherA]);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);
         }
         else
         {
-          singleGluonList.push_back(oneCluster.MotherB);
+          singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherB]);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);       
         }
         //cout << "GQ " << oneCluster.particleList.size() << endl;
@@ -3811,6 +3811,54 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   
   
   //Sort single gluons to nearest Antenna
+  
+  for(int i=0;i<singleGluonList.size();i++)
+  { 
+    double minDist=infinity;
+    int closestDCA=0;
+    for(int j=0;i<FinalParticleList.size();i++)
+    {
+      D=L.getDCAsquared(particles[singleGluonList[i]].Pos,particles[FinalParticleList[j]].Pos,particles[singleGluonList[i]].Mom,particles[FinalParticleList[j]].Mom);
+      if(minDist>D)
+      {
+        minDist=D;
+        closestDCA=j;       
+      }
+    }
+    //Attach i'th gluon to j'th parton in the FinalParticleList but write it simply at the end of the list
+    FinalParticleList.push_back(singleGluonList[i]);
+    //check colors of parton j
+    color1 = ColorStream1[j];
+    color2 = ColorStream2[j];
+    if(color1>0 && color2>0)
+    {
+      //TODO
+      //Parton j is a GLUON
+//       ColorStream1.push_back(ColorStream1[j]);  //write colors for the gluon
+//       ColorStream2.push_back(ColorStream1[j]+1); 
+//       
+//       ColorStream1[j] = 
+//       ColorStream2[j] = 
+    }
+    else if (color1>0)
+    {
+      //Parton j is a Quark
+      ColorStream1.push_back(ColorStream1[j]);  //write colors for the gluon
+      ColorStream2.push_back(ColorStream1[j]+1); 
+      ColorStream1[j]=ColorStream1[j]+1;        // change quark color
+      
+      
+    }
+    else if (color2>0)
+    {
+      //Parton j is a AntiQuark
+            
+      ColorStream1.push_back(ColorStream2[j]);  //write colors for the gluon
+      ColorStream2.push_back(ColorStream2[j]+1); 
+      ColorStream2[j]=ColorStream2[j]+1;        // change antiquark color
+    }
+    
+  }
   
   
  
