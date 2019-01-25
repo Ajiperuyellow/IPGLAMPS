@@ -3648,8 +3648,12 @@ partonCombinationType analysis::whichQCDCombination(int i, int j)
     return glue_glue;
   else if( (particles[i].FLAVOR==up && particles[j].FLAVOR==anti_up) || (particles[i].FLAVOR==down && particles[j].FLAVOR==anti_down) || (particles[i].FLAVOR==strange && particles[j].FLAVOR==anti_strange) )
     return quark_antiquark;
-  else 
+  else if( (particles[j].FLAVOR==up && particles[i].FLAVOR==anti_up) || (particles[j].FLAVOR==down && particles[i].FLAVOR==anti_down) || (particles[j].FLAVOR==strange && particles[i].FLAVOR==anti_strange) )
+    return quark_antiquark;  
+  else if( particles[i].FLAVOR==gluon || particles[j].FLAVOR==gluon)
     return glue_quark;
+  else 
+    return quark_quark;
 }
  
  
@@ -3675,7 +3679,7 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   
   
   
-  vector<int> ColorStream1,ColorStream2,FinalParticleList,singleGluonList;
+  vector<int> ColorStream1,ColorStream2,FinalParticleList,singleGluonList,AttachedAntennaLegs;
 
   
   
@@ -3797,7 +3801,7 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
           singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherA]);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);
         }
-        else
+        else if (particles[oneCluster.particleList[oneCluster.MotherB]].FLAVOR==gluon)
         {
           singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherB]);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);       
@@ -3805,19 +3809,45 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
         //cout << "GQ " << oneCluster.particleList.size() << endl;
       }; 
       break;
+      case quark_quark:
+      {
+        //HACK delete quark quark pairs first
+        if(oneCluster.MotherA>oneCluster.MotherB)
+        { 
+          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);
+          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);
+        }
+        else
+        {
+          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);
+          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);          
+        }
+      }
+      break;
     }
   }
   while(oneCluster.particleList.size()>1);    
   
+  cout << "SINGLE GLUON LIST:" << endl;
+  for (auto i = singleGluonList.begin(); i != singleGluonList.end(); ++i)
+    std::cout << *i << ' ';
+  
+  cout << "BEFORE SINGLE GLUON LIST ATTACHEMENTS:" << endl;
+  for (auto i = 0; i < ColorStream1.size() ; ++i)
+    std::cout <<FinalParticleList[i] <<'\t'<< particles[FinalParticleList[i]].FLAVOR << '\t' << ColorStream1[i] << '\t' << ColorStream2[i] << endl;
+  
   
   //Sort single gluons to nearest Antenna
-  
   for(int i=0;i<singleGluonList.size();i++)
   { 
     double minDist=infinity;
     int closestDCA=0;
-    for(int j=0;i<FinalParticleList.size();i++)
+    for(int j=0;j<FinalParticleList.size();j++)
     {
+      if( (std::find(AttachedAntennaLegs.begin(), AttachedAntennaLegs.end(), j) != AttachedAntennaLegs.end()  ) )
+      {
+        continue;
+      }
       D=L.getDCAsquared(particles[singleGluonList[i]].Pos,particles[FinalParticleList[j]].Pos,particles[singleGluonList[i]].Mom,particles[FinalParticleList[j]].Mom);
       if(minDist>D)
       {
@@ -3825,43 +3855,66 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
         closestDCA=j;       
       }
     }
+    AttachedAntennaLegs.push_back(closestDCA); //closestDCA'th = j'th parton gets a gluon attached, so don't attach another one later to it
     //Attach i'th gluon to j'th parton in the FinalParticleList but write it simply at the end of the list
     FinalParticleList.push_back(singleGluonList[i]);
     //check colors of parton j
-    color1 = ColorStream1[j];
-    color2 = ColorStream2[j];
+    color1 = ColorStream1[closestDCA];
+    color2 = ColorStream2[closestDCA];
     if(color1>0 && color2>0)
     {
       //TODO
-      //Parton j is a GLUON
-//       ColorStream1.push_back(ColorStream1[j]);  //write colors for the gluon
-//       ColorStream2.push_back(ColorStream1[j]+1); 
-//       
-//       ColorStream1[j] = 
-//       ColorStream2[j] = 
+      //Parton closestDCA is a GLUON
+      //Find last color of all given colors
+      
+      
+      std::vector<int>::iterator result1,result2;
+      result1 = std::max_element(ColorStream1.begin(), ColorStream1.end());
+      result2 = std::max_element(ColorStream2.begin(), ColorStream2.end());
+      int lastcolor=std::max(*result1,*result2);
+      
+      //2 possibilities: Attach to Color or Anticolor line of the gluon
+      if(ran2()>0.5)
+      {
+        //Color line unchanged, attach new gluon to anticolor line
+        ColorStream1.push_back(lastcolor+1);  //write colors for the gluon
+        ColorStream2.push_back(ColorStream2[closestDCA]); 
+        ColorStream2[closestDCA]=lastcolor+1; //change anticolor line of old gluon
+       
+        
+      }else
+      {
+        //Anticolor line unchanged , attach new gluon to color line
+        ColorStream2.push_back(lastcolor+1);  //write colors for the gluon
+        ColorStream1.push_back(ColorStream1[closestDCA]); 
+        ColorStream1[closestDCA]=lastcolor+1; //change anticolor line of old gluon
+      }
     }
     else if (color1>0)
     {
-      //Parton j is a Quark
-      ColorStream1.push_back(ColorStream1[j]);  //write colors for the gluon
-      ColorStream2.push_back(ColorStream1[j]+1); 
-      ColorStream1[j]=ColorStream1[j]+1;        // change quark color
+      //Parton closestDCA is a Quark
+      ColorStream1.push_back(ColorStream1[closestDCA]);  //write colors for the gluon
+      ColorStream2.push_back(ColorStream1[closestDCA]+1); 
+      ColorStream1[closestDCA]=ColorStream1[closestDCA]+1;        // change quark color
       
       
     }
     else if (color2>0)
     {
-      //Parton j is a AntiQuark
+      //Parton closestDCA is a AntiQuark
             
-      ColorStream1.push_back(ColorStream2[j]);  //write colors for the gluon
-      ColorStream2.push_back(ColorStream2[j]+1); 
-      ColorStream2[j]=ColorStream2[j]+1;        // change antiquark color
+      ColorStream1.push_back(ColorStream2[closestDCA]);  //write colors for the gluon
+      ColorStream2.push_back(ColorStream2[closestDCA]+1); 
+      ColorStream2[closestDCA]=ColorStream2[closestDCA]+1;        // change antiquark color
     }
     
   }
   
   
- 
+  cout << "AFTER SINGLE GLUON LIST ATTACHEMENTS:" << endl;
+  for (auto i = 0; i < ColorStream1.size() ; ++i)
+    std::cout <<FinalParticleList[i]  <<'\t'<< particles[FinalParticleList[i]].FLAVOR << '\t' << ColorStream1[i] << '\t' << ColorStream2[i] << endl;
+  
 
   VectorEPxPyPz beta;
   cluster newCluster;

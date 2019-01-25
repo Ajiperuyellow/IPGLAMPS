@@ -34,7 +34,7 @@ class config;
 
 enum jetTrackerCollType {initial_jet, final_jet, c2to2, c2to3, c3to2, production};
 enum anaType {ptSpectrum, ptSpectrumSoft, all, initial, final, jets, v2output, meanv2output,CharmNumber,BottomNumber,hydroNormal,hydroArrow,hydroMidRap,hydroMidRapArrow,hydroParticleOutput,midRapObservables, pos_mom};
-enum partonCombinationType { glue_glue, quark_antiquark, glue_quark };
+enum partonCombinationType { glue_glue, quark_antiquark, glue_quark, quark_quark };
 
 
 const string sep = "\t";

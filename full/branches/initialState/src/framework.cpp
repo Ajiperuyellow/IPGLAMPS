@@ -614,7 +614,7 @@ void heavyIonCollision::mainFramework( analysis& aa )
 void heavyIonCollision::makeSomeFakeQuarkPairs()
 { 
   int indexOne,indexTwo;
-  int fractionToTransform = floor((particles.size()/2.)*0.1);
+  int fractionToTransform = floor((particles.size()/2.)*0.5);
   cout << "Transform " << 2*fractionToTransform << " of " << particles.size() << " particles to q and anti-qs" << endl;
   for(int i=0; i<fractionToTransform; i++)
   {
