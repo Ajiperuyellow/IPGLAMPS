@@ -3632,16 +3632,6 @@ void analysis::getBetaToCoM(cluster ACluster, VectorEPxPyPz & beta)
   beta = sumAll.NormalizeToE();
 }
  
-bool analysis::goodQCDCombination(int i, int j)
-{
-  if (particles[i].FLAVOR==gluon && particles[j].FLAVOR==gluon )
-    return true;
-  else if( (particles[i].FLAVOR==up && particles[j].FLAVOR==anti_up) || (particles[i].FLAVOR==down && particles[j].FLAVOR==anti_down) || (particles[i].FLAVOR==strange && particles[j].FLAVOR==anti_strange) )
-    return true;
-  else 
-    return false;
-}
- 
 partonCombinationType analysis::whichQCDCombination(int i, int j)
 {
   if (particles[i].FLAVOR==gluon && particles[j].FLAVOR==gluon )
@@ -3650,21 +3640,152 @@ partonCombinationType analysis::whichQCDCombination(int i, int j)
     return quark_antiquark;
   else if( (particles[j].FLAVOR==up && particles[i].FLAVOR==anti_up) || (particles[j].FLAVOR==down && particles[i].FLAVOR==anti_down) || (particles[j].FLAVOR==strange && particles[i].FLAVOR==anti_strange) )
     return quark_antiquark;  
-  else if( particles[i].FLAVOR==gluon || particles[j].FLAVOR==gluon)
+  else if( particles[i].FLAVOR==gluon && particles[j].FLAVOR!=gluon)
     return glue_quark;
+  else if( particles[j].FLAVOR==gluon && particles[i].FLAVOR!=gluon)
+    return glue_quark;  
   else 
     return quark_quark;
 }
  
  
+//handels the cases up+up or up+antidown and such cases 
+void analysis::quark_quark_handler(int i, int j)
+{
+  if(ran2()<0.5)
+  {
+    int temp;
+    i=temp;
+    i=j;
+    j=temp;
+  }
+  
+  int flav = std::floor(ran2()*3);
+  switch(flav)
+  {
+    case 0:
+    { 
+      particles[i].FLAVOR=up;
+      particles[j].FLAVOR=anti_up;      
+    };
+    break;
+    case 1:
+    { 
+      particles[i].FLAVOR=down;
+      particles[j].FLAVOR=anti_down;     
+    };
+    break;
+    case 2:      
+    { 
+      particles[i].FLAVOR=strange;
+      particles[j].FLAVOR=anti_strange; 
+    };
+    break;
+  }
+}
+
+//Swap Colors in order to generate Double-Antennas with t-channel gluon (swaps colors but does not appear in momenta)
+void analysis::octet_handler(int A1, int A2, int B1, int B2, int & colorA1, int & anticolorA1, int & colorA2, int & anticolorA2, int & colorB1, int & anticolorB1, int & colorB2, int & anticolorB2)
+{
+  doubleAntennaCombinationType antennaCombinationTypes;
+  
+  if(ran2()<0.5)
+  {
+//     cout << "OCTET - SWAP!" << endl;   
+//     cout << "Before:" << endl;
+//     cout << colorA1 << "\t" << anticolorA1 << endl;
+//     cout << colorA2 << "\t" << anticolorA2 << endl;
+//     cout << colorB1 << "\t" << anticolorB1 << endl;
+//     cout << colorB2 << "\t" << anticolorB2 << endl;
+    
+    if(particles[A1].FLAVOR == gluon   && particles[B1].FLAVOR == gluon)
+    {
+      antennaCombinationTypes = gluonAntenna_gluonAntenna;
+      //Change to the Octet-Color Assignment
+      anticolorA1 = colorB2;
+      anticolorB1 = colorA2;       
+    }
+    else if ( particles[A1].FLAVOR == gluon   &&   particles[B1].FLAVOR != gluon  )
+    {
+      antennaCombinationTypes = gluonAntenna_quarkAntenna;
+      //Change to the Octet-Color Assignment
+
+      //check which one is quark/antiquark
+      if(anticolorB2>0)
+      {
+        colorA1 = anticolorB2;
+        colorB1 = anticolorA2;
+      }else
+      {
+        colorA1 = anticolorB1;
+        colorB2 = anticolorA2;       
+      }
+  
+    }  
+    else if ( particles[A1].FLAVOR != gluon   &&   particles[B1].FLAVOR == gluon  ) 
+    {
+      antennaCombinationTypes = gluonAntenna_quarkAntenna;
+      //Change to the Octet-Color Assignment
+      
+      //check which one is quark/antiquark
+      if(anticolorA2>0)
+      {
+        colorB1 = anticolorA2;
+        colorA1 = anticolorB2;
+      
+      }else
+      {
+        colorB1 = anticolorA1;
+        colorA2 = anticolorB2;       
+      }
+        
+    }        
+    else if (particles[A1].FLAVOR != gluon   && particles[B1].FLAVOR != gluon)
+    {
+      antennaCombinationTypes = quarkAntenna_quarkAntenna;
+      //Change to the Octet-Color Assignment
+      if(anticolorA2>0)
+      {  
+        if(colorB1>0)
+        {
+          anticolorA2 = colorB1;
+          anticolorB2 = colorA1;
+        }else
+        {
+          anticolorA2 = colorB2;
+          anticolorB1 = colorA1;            
+        }
+      } 
+      else
+      {
+        if(colorB1>0)
+        {
+          anticolorA1 = colorB1;
+          anticolorB2 = colorA2;
+        }else
+        {
+          anticolorA1 = colorB2;
+          anticolorB1 = colorA2;            
+        }         
+      }        
+    } 
+//     cout << "antennaCombinationTypes: " << antennaCombinationTypes << endl; 
+//     cout << colorA1 << "\t" << anticolorA1 << endl;
+//     cout << colorA2 << "\t" << anticolorA2 << endl;
+//     cout << colorB1 << "\t" << anticolorB1 << endl;
+//     cout << colorB2 << "\t" << anticolorB2 << endl; 
+  }
+}
+
  
- 
+//Generate LesHouches event, where particles are pre-clustered into antennas, double-antennas, and both of them possibly with attached gluons at each leg 
 void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, int no)
 {
   double EnergyBeam=0.;
   stringstream ss1,ss2,ss3,ss4,ss5,ss6,ss7;
   int N = oneCluster.particleList.size();
   int color1,color2;
+  
   cout << "Original Cluster Size " << N << endl;
   
   int Nparts=0;
@@ -3676,18 +3797,16 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   
   string momentaString;
   string endOfLine="0.0\t9.0\n" ;
-  
-  
-  
+
   vector<int> ColorStream1,ColorStream2,FinalParticleList,singleGluonList,AttachedAntennaLegs;
 
-  
-  
   double D;
   std::vector<int>::iterator it2,it1;
   bool badchoice=true;
   bool gluonQuark=false;
   partonCombinationType thisCombination;
+  
+  std::vector<cluster> antennas; 
   
   int countColors=0;
   lorentz L;
@@ -3695,43 +3814,44 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   {   
     double minDist=infinity;
     //find nearest combination
-    for ( int i = 0; i < oneCluster.particleList.size(); i++ )
+    for ( int i = 0; i < (oneCluster.particleList.size()-1); i++ )
     {
-      for ( int j = i; j < oneCluster.particleList.size(); j++ )
+      for ( int j = i+1; j < oneCluster.particleList.size(); j++ )
       {
-        if (i==j) continue;        
-        
-        
         //D=L.getSpatialDistance(particles[*it1].Pos,particles[*it2].Pos);
         D=L.getDCAsquared(particles[oneCluster.particleList[i]].Pos,particles[oneCluster.particleList[j]].Pos,particles[oneCluster.particleList[i]].Mom,particles[oneCluster.particleList[j]].Mom);
         if(minDist>D)
         {
           minDist=D;
           oneCluster.MotherA=i;
-          oneCluster.MotherB=j;
-         
+          oneCluster.MotherB=j;        
         }
       }
     } 
     
     thisCombination = whichQCDCombination(oneCluster.particleList[oneCluster.MotherA],oneCluster.particleList[oneCluster.MotherB]);
     
-    //cout << oneCluster.particleList[oneCluster.MotherA] << "\t\t\t" << oneCluster.particleList[oneCluster.MotherB] <<  "    switch " << thisCombination << endl;
-    
+    cout << particles[oneCluster.particleList[oneCluster.MotherA]].FLAVOR << "\t\t\t" << particles[oneCluster.particleList[oneCluster.MotherB]].FLAVOR <<  "    switch " << thisCombination << endl;
+    //Construct Singlets
     switch(thisCombination)
-    {
-      case  glue_glue: 
+    {     
+      case glue_glue: 
       {
         //cout << oneCluster.MotherA << "\t\t" << oneCluster.MotherB << "\t\t" << oneCluster.MotherB << endl;
+        cluster thisAntenna;
+        thisAntenna.particleList.clear();
+        thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
+        thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
         
         FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
         ColorStream1.push_back(501+countColors);
         ColorStream2.push_back(502+countColors);
+        thisAntenna.streamID1=ColorStream1.size()-1;
         
         FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
         ColorStream1.push_back(502+countColors);
         ColorStream2.push_back(501+countColors);
-        
+        thisAntenna.streamID2=ColorStream1.size()-1;
         
         if(oneCluster.MotherA>oneCluster.MotherB)
         { 
@@ -3743,40 +3863,54 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);          
         }
-        
 
-        
+        thisAntenna.calcCOM();
+        thisAntenna.calcVolume();
+        thisAntenna.calcInvMass();
+        antennas.push_back(thisAntenna);
+
         countColors+=2;
-        //cout << "GG " << FinalParticleList.size() << "\t\t\t" <<  oneCluster.particleList.size() << endl;
       }; 
       break;
       case quark_antiquark:
-      {
-        
+      {   
+
+        cluster thisAntenna;
+        thisAntenna.particleList.clear();
+
         if(  ParticlePrototype::mapToGenericFlavorType(particles[oneCluster.particleList[oneCluster.MotherA]].FLAVOR)==light_quark)
         {
           FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
           ColorStream1.push_back(501+countColors);
           ColorStream2.push_back(0);
-        
+          thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
+          thisAntenna.streamID1=ColorStream1.size()-1;
         
           FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
           ColorStream1.push_back(0);
           ColorStream2.push_back(501+countColors);    
+          thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
+          thisAntenna.streamID2=ColorStream1.size()-1;
           
         }else
         {
           FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
           ColorStream1.push_back(0);
           ColorStream2.push_back(501+countColors);
-        
+          thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherA]);
+          thisAntenna.streamID1=ColorStream1.size()-1;
         
           FinalParticleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
           ColorStream1.push_back(501+countColors);
-          ColorStream2.push_back(0);  
+          ColorStream2.push_back(0);           
+          thisAntenna.particleList.push_back(oneCluster.particleList[oneCluster.MotherB]);
+          thisAntenna.streamID2=ColorStream1.size()-1; 
         }
-        
-        
+
+        thisAntenna.calcCOM();
+        thisAntenna.calcVolume();
+        thisAntenna.calcInvMass();
+        antennas.push_back(thisAntenna);
         
         if(oneCluster.MotherA>oneCluster.MotherB)
         { 
@@ -3789,13 +3923,12 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);          
         }
         
-
         countColors+=2;
-        cout << "QQBAR " << oneCluster.particleList.size() << endl;
       }; 
       break;
       case glue_quark:
       {
+        //do nothing with the quark
         if(particles[oneCluster.particleList[oneCluster.MotherA]].FLAVOR==gluon)
         {
           singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherA]);
@@ -3806,37 +3939,73 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
           singleGluonList.push_back(oneCluster.particleList[oneCluster.MotherB]);
           oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);       
         }
-        //cout << "GQ " << oneCluster.particleList.size() << endl;
       }; 
       break;
       case quark_quark:
-      {
-        //HACK delete quark quark pairs first
-        if(oneCluster.MotherA>oneCluster.MotherB)
-        { 
-          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);
-          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);
-        }
-        else
-        {
-          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherB);
-          oneCluster.particleList.erase(oneCluster.particleList.begin()+oneCluster.MotherA);          
-        }
-      }
+      {  
+        quark_quark_handler(oneCluster.particleList[oneCluster.MotherA],oneCluster.particleList[oneCluster.MotherB]);
+      };
       break;
     }
   }
   while(oneCluster.particleList.size()>1);    
-  
-  cout << "SINGLE GLUON LIST:" << endl;
-  for (auto i = singleGluonList.begin(); i != singleGluonList.end(); ++i)
-    std::cout << *i << ' ';
-  
-  cout << "BEFORE SINGLE GLUON LIST ATTACHEMENTS:" << endl;
-  for (auto i = 0; i < ColorStream1.size() ; ++i)
-    std::cout <<FinalParticleList[i] <<'\t'<< particles[FinalParticleList[i]].FLAVOR << '\t' << ColorStream1[i] << '\t' << ColorStream2[i] << endl;
-  
-  
+
+  //Construct Octets from Double-Antennas
+  int antennaA;
+  int antennaB;
+  do{
+      double minDist=infinity;
+      for(int i=0; i<(antennas.size()-1); i++)
+      {  
+        for(int j=i+1; j< antennas.size(); j++)
+        {  
+          D=L.getDCAsquared(antennas[i].centerofmass, antennas[j].centerofmass, antennas[i].centerofmassMom ,antennas[j].centerofmassMom);
+          if(minDist>D)
+          {
+            minDist=D;
+            antennaA=i;
+            antennaB=j;
+          }
+        }      
+      }     
+
+      int A1 = antennas[antennaA].particleList[0];
+      int A2 = antennas[antennaA].particleList[1];
+      int B1 = antennas[antennaB].particleList[0];
+      int B2 = antennas[antennaB].particleList[1];
+      
+      int c1  = ColorStream1[antennas[antennaA].streamID1];
+      int ac1 = ColorStream2[antennas[antennaA].streamID1];
+      int c2  = ColorStream1[antennas[antennaA].streamID2];
+      int ac2 = ColorStream2[antennas[antennaA].streamID2];
+      int c3  = ColorStream1[antennas[antennaB].streamID1];
+      int ac3 = ColorStream2[antennas[antennaB].streamID1];
+      int c4  = ColorStream1[antennas[antennaB].streamID2];
+      int ac4 = ColorStream2[antennas[antennaB].streamID2];
+      
+      octet_handler(A1,A2,B1,B2,c1,ac1,c2,ac2,c3,ac3,c4,ac4);  
+      
+      ColorStream1[antennas[antennaA].streamID1]=c1;
+      ColorStream2[antennas[antennaA].streamID1]=ac1;
+      ColorStream1[antennas[antennaA].streamID2]=c2;
+      ColorStream2[antennas[antennaA].streamID2]=ac2;
+      ColorStream1[antennas[antennaB].streamID1]=c3;
+      ColorStream2[antennas[antennaB].streamID1]=ac3;
+      ColorStream1[antennas[antennaB].streamID2]=c4;
+      ColorStream2[antennas[antennaB].streamID2]=ac4;
+
+      if(antennaA>antennaB)
+      {
+        antennas.erase(antennas.begin()+antennaA);
+        antennas.erase(antennas.begin()+antennaB);
+      }else
+      {
+        antennas.erase(antennas.begin()+antennaB);
+        antennas.erase(antennas.begin()+antennaA);
+      }
+    }
+    while(antennas.size()>1);
+     
   //Sort single gluons to nearest Antenna
   for(int i=0;i<singleGluonList.size();i++)
   { 
@@ -3860,28 +4029,24 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
     FinalParticleList.push_back(singleGluonList[i]);
     //check colors of parton j
     color1 = ColorStream1[closestDCA];
-    color2 = ColorStream2[closestDCA];
+    color2 = ColorStream2[closestDCA]; 
+    
+    std::vector<int>::iterator result1,result2;
+    result1 = std::max_element(ColorStream1.begin(), ColorStream1.end());
+    result2 = std::max_element(ColorStream2.begin(), ColorStream2.end());
+    int lastcolor=std::max(*result1,*result2);
+    
     if(color1>0 && color2>0)
     {
-      //TODO
       //Parton closestDCA is a GLUON
       //Find last color of all given colors
-      
-      
-      std::vector<int>::iterator result1,result2;
-      result1 = std::max_element(ColorStream1.begin(), ColorStream1.end());
-      result2 = std::max_element(ColorStream2.begin(), ColorStream2.end());
-      int lastcolor=std::max(*result1,*result2);
-      
       //2 possibilities: Attach to Color or Anticolor line of the gluon
       if(ran2()>0.5)
       {
         //Color line unchanged, attach new gluon to anticolor line
         ColorStream1.push_back(lastcolor+1);  //write colors for the gluon
         ColorStream2.push_back(ColorStream2[closestDCA]); 
-        ColorStream2[closestDCA]=lastcolor+1; //change anticolor line of old gluon
-       
-        
+        ColorStream2[closestDCA]=lastcolor+1; //change anticolor line of old gluon 
       }else
       {
         //Anticolor line unchanged , attach new gluon to color line
@@ -3892,29 +4057,34 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
     }
     else if (color1>0)
     {
-      //Parton closestDCA is a Quark
+      //Parton closestDCA is a Quark 
       ColorStream1.push_back(ColorStream1[closestDCA]);  //write colors for the gluon
-      ColorStream2.push_back(ColorStream1[closestDCA]+1); 
-      ColorStream1[closestDCA]=ColorStream1[closestDCA]+1;        // change quark color
-      
-      
+      ColorStream2.push_back(lastcolor+1); 
+      ColorStream1[closestDCA]=lastcolor+1;        // change quark color
     }
     else if (color2>0)
     {
-      //Parton closestDCA is a AntiQuark
-            
-      ColorStream1.push_back(ColorStream2[closestDCA]);  //write colors for the gluon
-      ColorStream2.push_back(ColorStream2[closestDCA]+1); 
-      ColorStream2[closestDCA]=ColorStream2[closestDCA]+1;        // change antiquark color
+      //Parton closestDCA is a AntiQuark     
+      ColorStream1.push_back(lastcolor+1);  //write colors for the gluon
+      ColorStream2.push_back(ColorStream2[closestDCA]); 
+      ColorStream2[closestDCA]=lastcolor+1;        // change antiquark color
     }
     
   }
-  
-  
-  cout << "AFTER SINGLE GLUON LIST ATTACHEMENTS:" << endl;
-  for (auto i = 0; i < ColorStream1.size() ; ++i)
-    std::cout <<FinalParticleList[i]  <<'\t'<< particles[FinalParticleList[i]].FLAVOR << '\t' << ColorStream1[i] << '\t' << ColorStream2[i] << endl;
-  
+
+  //Test if colors/anticolors are not doubled  
+  for(int i=0;i<ColorStream1.size();i++)
+  {
+    if(ColorStream1[i]==0) continue;
+    if ( std::find(ColorStream1.begin()+i+1, ColorStream1.end(), ColorStream1[i]) != ColorStream1.end() )
+     cout << "color1 " << ColorStream1[i] << " double!!!" << endl;
+  }
+  for(int i=0;i<ColorStream2.size();i++)
+  {
+    if(ColorStream2[i]==0) continue;
+    if ( std::find(ColorStream2.begin()+i+1, ColorStream2.end(), ColorStream2[i]) != ColorStream2.end() )
+     cout << "color2 " << ColorStream2[i] << " double!!!" << endl;
+  } 
 
   VectorEPxPyPz beta;
   cluster newCluster;
@@ -3953,7 +4123,6 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
 
   Nparts += 3; // the incoming and intermediate particle count as well
   
-  
   double invariantMass=sqrt(pow(TotMom.E(),2.0)-TotMom.vec2());
   ss3 << invariantMass;
 
@@ -3961,11 +4130,9 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
    
   ss2 << Nparts;
   string NpartsStr=ss2.str();
-  
    
   string lesHouchesString="<LesHouchesEvents version=\"1.0\">\n<headers>\n</headers>\n<init>\n11 -11 " + ss3.str() + " " + ss3.str() + " -1 -1 -1 -1 1 1\n0 0  3 1001\n</init>\n<event>\n";
   lesHouchesString+=NpartsStr+ "\t1001\t1\t-1\t0.00729927007\t0.3\n";
-
 
   VectorEPxPyPz TotEPlusMom(TotE/2.,TotE/2.,0,0);
   VectorEPxPyPz TotEMinusMom(TotE/2.,-TotE/2.,0,0);
@@ -3974,11 +4141,9 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   writeMomenta(TotEPlusMom,lesHouchesString);   
   lesHouchesString =  lesHouchesString + "0" +"\t"+endOfLine;
   
-  
   lesHouchesString=lesHouchesString+"-11\t-1\t0\t0\t0\t0\t";
   writeMomenta(TotEMinusMom,lesHouchesString);
   lesHouchesString = lesHouchesString +"0" +"\t"+endOfLine;
-   
      
   VectorEPxPyPz Photon = TotMom;
   
@@ -3989,23 +4154,20 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   
   lesHouchesString=lesHouchesString + momentaString;
     
+  lesHouchesString=lesHouchesString+"</event>\n</LesHouchesEvents>";
 
-   lesHouchesString=lesHouchesString+"</event>\n</LesHouchesEvents>";
+  string filename;
 
-   
-   string filename;
+  ss4 << no;
 
-   ss4 << no;
-
-   filename = filename_prefix + "_generatedEvent_" + ss4.str() + ".lhe";
-   fstream file_central( filename.c_str(), ios::out | ios::trunc  );
-   file_central << lesHouchesString;
-   file_central.close();
-   
+  filename = filename_prefix + "_generatedEvent_" + ss4.str() + ".lhe";
+  fstream file_central( filename.c_str(), ios::out | ios::trunc  );
+  file_central << lesHouchesString;
+  file_central.close();
 }
  
  
- 
+//Old Routine for LesHouches event generation. Replaced by GenerateDCATimeOrderedColorsLesHouchesEvent
 void analysis::generateLesHouchesEvent(cluster oneCluster, int no)
 {
   double EnergyBeam=0.;
@@ -4521,7 +4683,7 @@ void analysis::runHERWIG()
     filenameFolder = filename_prefix + "_generatedEvent_" + ss4.str() + ".lhe";
 
     string befehl="./GO.sh " + filename + " " + "myEventSaverun_" + ss4.str() + " " + filenameFolder;
-    system(befehl.c_str());
+    int befehlResult = system(befehl.c_str());
     
     //WARNING: HACK
 //     break;

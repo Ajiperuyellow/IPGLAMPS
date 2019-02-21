@@ -35,6 +35,7 @@ class config;
 enum jetTrackerCollType {initial_jet, final_jet, c2to2, c2to3, c3to2, production};
 enum anaType {ptSpectrum, ptSpectrumSoft, all, initial, final, jets, v2output, meanv2output,CharmNumber,BottomNumber,hydroNormal,hydroArrow,hydroMidRap,hydroMidRapArrow,hydroParticleOutput,midRapObservables, pos_mom};
 enum partonCombinationType { glue_glue, quark_antiquark, glue_quark, quark_quark };
+enum doubleAntennaCombinationType { gluonAntenna_gluonAntenna, gluonAntenna_quarkAntenna, quarkAntenna_quarkAntenna};
 
 
 const string sep = "\t";
@@ -70,12 +71,13 @@ public:
   int myColor;
   
   int MotherA,MotherB;
+    
+  int streamID1,streamID2;
   
 private:
  
 
-  
- 
+
 };
 
 
@@ -211,8 +213,9 @@ class analysis
   vector<string> split(string const &input); 
   bool isUncharged(string particleID);
   bool isCharged(string particleID);
-  bool goodQCDCombination(int i,int j);
   partonCombinationType whichQCDCombination(int i,int j);
+  void quark_quark_handler(int i,int j);
+  void octet_handler(int A1, int A2, int B1, int B2, int & colorA1, int & anticolorA1, int & colorA2, int & anticolorA2, int & colorB1, int & anticolorB1, int & colorB2, int & anticolorB2);
   
 private:
   //------------------------
