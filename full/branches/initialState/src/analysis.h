@@ -2,8 +2,8 @@
 //provided by subversion
 //----------------------------------------------------------------------------
 //$HeadURL: file:///home/bamps/svn/full/branches/initialState/src/analysis.h $
-//$LastChangedDate: 2019-01-04 17:31:48 +0100 (Fr, 04. Jan 2019) $
-//$LastChangedRevision: 2916 $
+//$LastChangedDate: 2019-03-21 17:38:54 +0100 (Do, 21. Mär 2019) $
+//$LastChangedRevision: 2966 $
 //$LastChangedBy: greif $
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -204,7 +204,11 @@ class analysis
   void writeAllClustersInLesHouches(vector<cluster> allClusters, int no);
   void runHERWIG();
   void generateLesHouchesEvent(cluster oneCluster, int no);
+  bool noMoreSingletGluons(vector<vector<int>> ParticleListWColors);
+  void GiveNextColors(int& color, int& anticolor, int& recentColor, int & recentAnticolor, int whichParticle, int & countColors);
   void GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, int no);
+  void distributeEqualQuarks(cluster & oneCluster);
+  void GenerateShuffledColorsLesHouchesEvent(cluster oneCluster, int no);
   void writeMomenta(VectorEPxPyPz aVector, string & thestring);
   int NumberCluster=0;
   std::vector<int> ClusterNumbers{};

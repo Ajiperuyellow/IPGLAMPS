@@ -2,8 +2,8 @@
 //provided by subversion
 //----------------------------------------------------------------------------
 //$HeadURL: file:///home/bamps/svn/full/branches/initialState/src/analysis.cpp $
-//$LastChangedDate: 2019-01-05 18:02:58 +0100 (Sa, 05. Jan 2019) $
-//$LastChangedRevision: 2917 $
+//$LastChangedDate: 2019-03-21 17:38:54 +0100 (Do, 21. Mär 2019) $
+//$LastChangedRevision: 2966 $
 //$LastChangedBy: greif $
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -3442,7 +3442,8 @@ void analysis::writeAllClustersInLesHouches(vector< cluster > allClusters, int n
     cout << "Write LesHouches for Cluster " << std::distance(allClusters.begin(),it) << endl;
     //WARNING
     //generateLesHouchesEvent((*it), std::distance(allClusters.begin(),it)); 
-    GenerateDCATimeOrderedColorsLesHouchesEvent((*it), std::distance(allClusters.begin(),it));
+    //GenerateDCATimeOrderedColorsLesHouchesEvent((*it), std::distance(allClusters.begin(),it));
+    GenerateShuffledColorsLesHouchesEvent((*it), std::distance(allClusters.begin(),it));
     //HACK
 //     break;
   }
@@ -3655,7 +3656,7 @@ void analysis::quark_quark_handler(int i, int j)
   if(ran2()<0.5)
   {
     int temp;
-    i=temp;
+    temp=i;
     i=j;
     j=temp;
   }
@@ -3681,7 +3682,10 @@ void analysis::quark_quark_handler(int i, int j)
       particles[j].FLAVOR=anti_strange; 
     };
     break;
+    default:
+      exit(0);
   }
+//   cout << i << "\t" << j << "\tChanged to " << particles[i].FLAVOR << "\t" << particles[j].FLAVOR << endl;
 }
 
 //Swap Colors in order to generate Double-Antennas with t-channel gluon (swaps colors but does not appear in momenta)
@@ -4166,6 +4170,433 @@ void analysis::GenerateDCATimeOrderedColorsLesHouchesEvent(cluster oneCluster, i
   file_central.close();
 }
  
+//Check, if any gluon is still a singlet
+// bool analysis::noMoreSingletGluons(vector<vector<int>> ParticleListWColors)
+// {
+//   bool stillSinglets=false;
+//   for ( int i = 0; i < (ParticleListWColors.size()); i++ )
+//   {
+//     if(ParticleListWColors[i][1]==ParticleListWColors[i][2])
+//     {
+//       stillSinglets=true;
+//       break;
+//     }
+//   }
+//   return stillSinglets;
+// }
+
+void analysis::GiveNextColors(int& color, int& anticolor, int & recentColor, int & recentAnticolor, int whichParticle, int & countColors)
+{
+  
+  if(whichParticle==1) //ANTIPARTICLE
+  {
+    if(recentColor>0)
+    {
+      color=0;
+      anticolor=recentColor;
+      recentColor=0;
+    }else
+    {
+      color=0;
+      anticolor=501+countColors;
+      recentAnticolor = anticolor;
+      countColors++;
+    }
+  }else if (whichParticle==0)  //PARTICLE
+  {
+    if(recentAnticolor>0)
+    {
+      anticolor=0;
+      color=recentAnticolor;
+      recentAnticolor=0;
+    }else
+    {
+      anticolor=0;
+      color=501+countColors;
+      recentColor = color;
+      countColors++;
+    }
+  }else if (whichParticle==2) //GLUON
+  {
+    bool increaseLater=false;
+    int recentColorTemp=0;
+    int recentAntiColorTemp=0;
+    
+    if(recentColor==0 && recentAnticolor==0)
+    {
+      color=501+countColors;
+      anticolor=501+countColors;
+      countColors++;
+      //Must be shuffled later!
+    }else
+    {  
+      if(recentAnticolor>0)
+      {
+        color=recentAnticolor;
+        recentAnticolor=0;
+      }else
+      {
+        color=501+countColors;
+        recentColorTemp = color;
+        increaseLater=true;
+      }
+      
+      if(recentColor>0)
+      {
+        anticolor=recentColor;
+        recentColor=0;     
+      }else
+      {
+        anticolor=501+countColors;
+        recentAntiColorTemp = anticolor;
+        increaseLater=true;
+      }  
+      
+      if(increaseLater) countColors++;
+      if(recentColorTemp>0) recentColor=recentColorTemp;
+      if(recentAntiColorTemp>0) recentAnticolor=recentAntiColorTemp;
+    }
+  }
+}
+ 
+bool analysis::noMoreSingletGluons(vector< vector< int > > ParticleListWColors)
+{
+  for(int i =0; i < ParticleListWColors.size(); i++)
+  {
+    if(ParticleListWColors[i][1]==ParticleListWColors[i][2])
+    {
+      cout << ParticleListWColors[i][0] << "\t" << ParticleListWColors[i][1] << "\t\t" << ParticleListWColors[i][2] << endl;
+      return false;
+    }
+  }
+  return true;
+}
+ 
+void analysis::distributeEqualQuarks(cluster & oneCluster)
+{
+  cout << "equalize quarks!!" << endl;
+  //countQuarks
+  int countQAQ=0;
+  int lastQIndex;
+  for ( int i = 0; i < (oneCluster.particleList.size()); i++ )
+  { 
+//     cout << i << "\t" << particles[oneCluster.particleList[i]].FLAVOR << endl;
+    if(particles[oneCluster.particleList[i]].FLAVOR!=gluon)
+    {
+      countQAQ++;
+      lastQIndex=i;
+    }
+  }
+  //make q+aq number even
+  if (countQAQ % 2 != 0)
+  {
+    particles[oneCluster.particleList[lastQIndex]].FLAVOR=gluon;
+    cout << "UNEVEN" << endl;
+  }
+  //find subsequent quark pairs
+  for ( int i = 0; i < (oneCluster.particleList.size()-1); i++ )
+  {        
+    if(particles[oneCluster.particleList[i]].FLAVOR!=gluon)
+    {
+      for ( int j = i+1; j < (oneCluster.particleList.size()); j++ )
+      {
+        if(particles[oneCluster.particleList[j]].FLAVOR!=gluon)
+        {
+//           cout << "!!!!!!!!!!!!!!!!!" << endl;
+//           cout << particles[oneCluster.particleList[i]].FLAVOR << "\t" <<  particles[oneCluster.particleList[j]].FLAVOR << endl;
+          quark_quark_handler(oneCluster.particleList[i],oneCluster.particleList[j]);
+//           cout << oneCluster.particleList[i] << "\t" << oneCluster.particleList[j] << "\t" << particles[oneCluster.particleList[i]].FLAVOR << "\t" <<  particles[oneCluster.particleList[j]].FLAVOR << endl;
+          //cout << i << "\t" << j << "\t" << particles[oneCluster.particleList[i]].FLAVOR << "\t" <<  particles[oneCluster.particleList[j]].FLAVOR  << endl;
+          i=j;
+          break;
+        }
+      }
+    }
+  }
+}
+ 
+ 
+//Generate LesHouches event, where particles are pre-clustered into antennas, double-antennas, and both of them possibly with attached gluons at each leg 
+void analysis::GenerateShuffledColorsLesHouchesEvent(cluster oneCluster, int no)
+{
+  double EnergyBeam=0.;
+  stringstream ss1,ss2,ss3,ss4,ss5,ss6,ss7;
+  int N = oneCluster.particleList.size();
+  int color1,color2;
+  
+  cout << "Original Cluster Size " << N << endl;
+  
+  int Nparts=0;
+  
+  double TotE=0.;
+  VectorEPxPyPz TotMom_Q(0.,0.,0.,0.);
+  VectorEPxPyPz TotMom_AQ(0.,0.,0.,0.);  
+  VectorEPxPyPz TotMom(0.,0.,0.,0.);
+  
+  string momentaString;
+  string endOfLine="0.0\t9.0\n" ;
+
+  vector<int> ColorStream1,ColorStream2,FinalParticleList,singleGluonList,AttachedAntennaLegs;
+
+  
+  vector< vector<int> > FinalParticleListWithColors;
+ 
+  
+  double D;
+  std::vector<int>::iterator it2,it1;
+  bool badchoice=true;
+  bool gluonQuark=false;
+  partonCombinationType thisCombination;
+  
+  std::vector<cluster> antennas; 
+  
+  int countColors=0;
+  lorentz L;
+  
+  int thisColor,thisAntiColor;
+  std::vector<int> recentColors;
+  std::vector<int> recentAntiColors;
+
+
+  int countQ=0;
+  int countAQ=0;
+  
+  
+  distributeEqualQuarks(oneCluster);
+  
+  for ( int i = 0; i < (oneCluster.particleList.size()); i++ )
+  {
+    if(particles[oneCluster.particleList[i]].FLAVOR==gluon)
+    {
+      //temporary singlet gluon
+      vector<int> aGluon;
+      aGluon.push_back(oneCluster.particleList[i]);
+      
+      int recentColor=0;
+      int recentAntiColor=0;
+      
+      std::random_shuffle ( recentColors.begin(), recentColors.end() );
+      std::random_shuffle ( recentAntiColors.begin(), recentAntiColors.end() );      
+      if(!recentColors.empty()) 
+      { 
+        recentColor=recentColors.back(); 
+        recentColors.pop_back();       
+      }
+      if(!recentAntiColors.empty()) 
+      { 
+        recentAntiColor=recentAntiColors.back();
+        recentAntiColors.pop_back();       
+      }
+      GiveNextColors(thisColor, thisAntiColor, recentColor, recentAntiColor, 2, countColors);
+      if(recentColor!=0)recentColors.push_back(recentColor);
+      if(recentAntiColor!=0)recentAntiColors.push_back(recentAntiColor);
+      aGluon.push_back(thisColor);
+      aGluon.push_back(thisAntiColor);
+      FinalParticleListWithColors.push_back(aGluon);
+//       cout << "gluon " <<"\t" << thisColor << "\t" << thisAntiColor << "\t" << 501+countColors << "\t" << recentColor << "\t" << recentAntiColor << endl;
+      
+      //PROBLEM:
+//       gluon   534     533     535     534     0
+//       antiq   0       534     535     0       0
+//       gluon   535     535     536     535     535
+//       gluon   535     535     536     0       0
+//       gluon   536     536     537     536     536
+
+    }
+    if(particles[oneCluster.particleList[i]].FLAVOR==up || particles[oneCluster.particleList[i]].FLAVOR==down || particles[oneCluster.particleList[i]].FLAVOR==strange)
+    {
+      vector<int> aQuark;
+      aQuark.push_back(oneCluster.particleList[i]);
+      
+      int recentColor=0;
+      int recentAntiColor=0;
+      
+      std::random_shuffle ( recentColors.begin(), recentColors.end() );
+      std::random_shuffle ( recentAntiColors.begin(), recentAntiColors.end() );      
+      if(!recentAntiColors.empty()) 
+      { 
+        recentAntiColor=recentAntiColors.back();
+        recentAntiColors.pop_back();       
+      }
+      GiveNextColors(thisColor, thisAntiColor, recentColor, recentAntiColor,0, countColors);
+      if(recentColor!=0)recentColors.push_back(recentColor);
+      if(recentAntiColor!=0)recentAntiColors.push_back(recentAntiColor);
+      aQuark.push_back(thisColor);
+      aQuark.push_back(thisAntiColor);
+      FinalParticleListWithColors.push_back(aQuark);
+//       cout << "quark " <<"\t" << thisColor << "\t" << thisAntiColor << "\t" << 501+countColors << "\t" << recentColor << "\t" << recentAntiColor << endl;
+    }
+    if(particles[oneCluster.particleList[i]].FLAVOR==anti_up || particles[oneCluster.particleList[i]].FLAVOR==anti_down || particles[oneCluster.particleList[i]].FLAVOR==anti_strange)
+    {
+      vector<int> aAntiQuark;
+      aAntiQuark.push_back(oneCluster.particleList[i]);
+
+      int recentColor=0;
+      int recentAntiColor=0;
+      
+      std::random_shuffle ( recentColors.begin(), recentColors.end() );
+      std::random_shuffle ( recentAntiColors.begin(), recentAntiColors.end() );
+
+      
+      if(!recentColors.empty()) 
+      { 
+        recentColor=recentColors.back(); 
+        recentColors.pop_back();       
+      }
+      GiveNextColors(thisColor, thisAntiColor, recentColor, recentAntiColor, 1, countColors);
+      if(recentColor!=0)recentColors.push_back(recentColor);
+      if(recentAntiColor!=0)recentAntiColors.push_back(recentAntiColor);
+      aAntiQuark.push_back(thisColor);
+      aAntiQuark.push_back(thisAntiColor);
+      FinalParticleListWithColors.push_back(aAntiQuark);  
+//       cout << "antiq " <<"\t" << thisColor << "\t" << thisAntiColor << "\t" << 501+countColors << "\t" << recentColor << "\t" << recentAntiColor << endl;
+    }    
+  }
+  
+  if(!recentColors.empty())
+  {
+    cout << recentColors.size() << " Colors uebrig " << endl;
+  }   
+  if(!recentAntiColors.empty())
+  {
+    cout << recentAntiColors.size() << " AntiColors uebrig " << endl;
+  }  
+  
+  
+  
+  
+  
+  
+  for(int i =0; i < FinalParticleListWithColors.size(); i++)
+  {
+//     cout << particles[FinalParticleListWithColors[i][0]].FLAVOR<<"\t" <<FinalParticleListWithColors[i][0] << "\t" << FinalParticleListWithColors[i][1] << "\t" << FinalParticleListWithColors[i][2] << "\t" << endl;
+    if(FinalParticleListWithColors[i][1]==0 && FinalParticleListWithColors[i][2]==0)
+    {
+      cout << "WARNING";
+      exit(0);
+    }
+  }
+  
+  //Shuffle random 
+  cout << "SHUFFLE" << endl;
+
+  do
+  {
+    vector<int> colorsToShuffle,antiColorsToShuffle;
+    for(int i =0; i < FinalParticleListWithColors.size(); i++)
+    {
+//       cout << particles[FinalParticleListWithColors[i][0]].FLAVOR << "\t" << FinalParticleListWithColors[i][1] << "\t" << FinalParticleListWithColors[i][2] << "\t" << endl;
+      if(FinalParticleListWithColors[i][1]>0)colorsToShuffle.push_back(FinalParticleListWithColors[i][1]);
+      if(FinalParticleListWithColors[i][2]>0)antiColorsToShuffle.push_back(FinalParticleListWithColors[i][2]);
+    }
+    std::random_shuffle ( colorsToShuffle.begin(), colorsToShuffle.end() );   
+    std::random_shuffle ( antiColorsToShuffle.begin(), antiColorsToShuffle.end() );   
+    for(int i =0; i < FinalParticleListWithColors.size(); i++)
+    {
+      if(FinalParticleListWithColors[i][1]>0) 
+      {
+        FinalParticleListWithColors[i][1] = colorsToShuffle.back();
+        colorsToShuffle.pop_back();
+      }
+      if(FinalParticleListWithColors[i][2]>0)
+      {
+        FinalParticleListWithColors[i][2] = antiColorsToShuffle.back();
+        antiColorsToShuffle.pop_back();   
+      }
+    } 
+    if(noMoreSingletGluons(FinalParticleListWithColors)==true) break;
+  }while(1);
+  
+  
+  cout << "SHUFFLED" << endl;
+  
+//   for(int i =0; i < FinalParticleListWithColors.size(); i++)
+//   {
+// //     cout << particles[FinalParticleListWithColors[i][0]].FLAVOR << "\t" << FinalParticleListWithColors[i][1] << "\t" << FinalParticleListWithColors[i][2] << "\t" << endl;
+//   }
+  
+  
+  
+  VectorEPxPyPz beta;
+  cluster newCluster;
+  newCluster.particleList.reserve(FinalParticleList.size());
+  newCluster.particleList = FinalParticleList;
+  getBetaToCoM(newCluster,  beta);
+  lorentz boostToCoM;
+  boostToCoM.setBeta(beta);
+
+  
+  for(int i=0;i<FinalParticleListWithColors.size();i++)
+  {        
+    particles[FinalParticleListWithColors[i][0]].Mom = boostToCoM.boost(particles[FinalParticleListWithColors[i][0]].Mom); 
+
+    int species = ParticlePrototype::mapToPDG(particles[FinalParticleListWithColors[i][0]].FLAVOR);
+    ss7.str("");
+    ss7 << species;
+
+    ss5.str("");
+    ss6.str("");
+    ss5 << FinalParticleListWithColors[i][1];
+    ss6 << FinalParticleListWithColors[i][2];
+    
+    momentaString = momentaString + ss7.str() + "\t+1\t3\t3\t"+ss5.str()+"\t"+ss6.str()+"\t";
+    writeMomenta(particles[FinalParticleListWithColors[i][0]].Mom,momentaString);
+    momentaString = momentaString +  "0" +"\t"+endOfLine;
+    
+    Nparts++;
+    
+    TotMom  += particles[FinalParticleListWithColors[i][0]].Mom;
+    TotE    += particles[FinalParticleListWithColors[i][0]].Mom.E();    
+    
+  }
+  
+  cout << "Tot MOM = " << TotMom << endl;
+
+  Nparts += 3; // the incoming and intermediate particle count as well
+  
+  double invariantMass=sqrt(pow(TotMom.E(),2.0)-TotMom.vec2());
+  ss3 << invariantMass;
+
+  cout << "Final Cluster Size " << Nparts-3 << endl;
+   
+  ss2 << Nparts;
+  string NpartsStr=ss2.str();
+   
+  string lesHouchesString="<LesHouchesEvents version=\"1.0\">\n<headers>\n</headers>\n<init>\n11 -11 " + ss3.str() + " " + ss3.str() + " -1 -1 -1 -1 1 1\n0 0  3 1001\n</init>\n<event>\n";
+  lesHouchesString+=NpartsStr+ "\t1001\t1\t-1\t0.00729927007\t0.3\n";
+
+  VectorEPxPyPz TotEPlusMom(TotE/2.,TotE/2.,0,0);
+  VectorEPxPyPz TotEMinusMom(TotE/2.,-TotE/2.,0,0);
+
+  lesHouchesString=lesHouchesString+"11\t-1\t0\t0\t0\t0\t";
+  writeMomenta(TotEPlusMom,lesHouchesString);   
+  lesHouchesString =  lesHouchesString + "0" +"\t"+endOfLine;
+  
+  lesHouchesString=lesHouchesString+"-11\t-1\t0\t0\t0\t0\t";
+  writeMomenta(TotEMinusMom,lesHouchesString);
+  lesHouchesString = lesHouchesString +"0" +"\t"+endOfLine;
+     
+  VectorEPxPyPz Photon = TotMom;
+  
+  lesHouchesString=lesHouchesString+"22\t+2\t1\t2\t0\t0\t";
+  writeMomenta(Photon,lesHouchesString);
+  //invariant mass = energy beam
+  lesHouchesString=lesHouchesString+ ss3.str()  +"\t"+endOfLine;
+  
+  lesHouchesString=lesHouchesString + momentaString;
+    
+  lesHouchesString=lesHouchesString+"</event>\n</LesHouchesEvents>";
+
+  string filename;
+
+  ss4 << no;
+
+  filename = filename_prefix + "_generatedEvent_" + ss4.str() + ".lhe";
+  fstream file_central( filename.c_str(), ios::out | ios::trunc  );
+  file_central << lesHouchesString;
+  file_central.close();
+}
+  
  
 //Old Routine for LesHouches event generation. Replaced by GenerateDCATimeOrderedColorsLesHouchesEvent
 void analysis::generateLesHouchesEvent(cluster oneCluster, int no)
